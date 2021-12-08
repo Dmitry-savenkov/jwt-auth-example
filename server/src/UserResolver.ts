@@ -1,7 +1,8 @@
 import { hash, compare } from "bcryptjs";
 import { sign } from "jsonwebtoken";
-import { Arg, Query, Resolver, Mutation, ObjectType, Field } from "type-graphql";
+import { Arg, Query, Resolver, Mutation, ObjectType, Field, Ctx } from "type-graphql";
 import { User } from "./entity/User";
+import { MyContext } from './MyContext';
 
 @ObjectType()
 class LoginResponse{
@@ -23,7 +24,8 @@ export class UserResolver{
   @Mutation(() => LoginResponse)
   async login( 
       @Arg('email') email : string,
-      @Arg('password') password : string
+      @Arg('password') password : string,
+      @Ctx() { res }: MyContext
     ) : Promise<LoginResponse>{
 
     const user = await User.findOne({
@@ -35,13 +37,22 @@ export class UserResolver{
     if(!user){
       throw new Error("could not find user")
     }
-    const valid = compare (password, user.password);
+    const valid = await compare(password, user.password);
 
     if(!valid){
       throw new Error("bad password")
     }
 
     // login good
+
+    res.cookie(
+      'jid',
+       sign({userId: user.id,}, 'kkqjenqkjncskjhu423mnsbdf', {
+         expiresIn: "7d"
+      }),
+      {
+        httpOnly: true
+      })
     
     return {
       accessToken: sign({userId: user.id,}, 'asdasdasdmasmd.a,smf.nsdfnsjfnjsndfjwei131323', {
